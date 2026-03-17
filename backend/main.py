@@ -13,7 +13,8 @@ from typing import Annotated
 import jwt
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
@@ -208,6 +209,12 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+# ---------- Serve frontend (single-service deploy) ----------
+_frontend_dist = (Path(__file__).resolve().parent.parent / "frontend" / "dist").resolve()
+if _frontend_dist.exists():
+    # Vite assets live under /assets by default.
+    app.mount("/assets", StaticFiles(directory=str(_frontend_dist / "assets")), name="assets")
 
 
 @app.get("/health")
@@ -611,3 +618,20 @@ def api_download_zip(
         media_type="application/zip",
         headers={"Content-Disposition": "attachment; filename=kingly-artifacts.zip"},
     )
+
+
+# ---------- SPA fallback (React Router) ----------
+@app.get("/{full_path:path}")
+def spa_fallback(full_path: str):
+    # If frontend isn't built, avoid masking API 404s.
+    if not _frontend_dist.exists():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    # Let actual static assets pass through; they should be served by the mount above.
+    if full_path.startswith("assets/"):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    index_path = _frontend_dist / "index.html"
+    if not index_path.exists():
+        raise HTTPException(status_code=404, detail="Frontend not built")
+    return FileResponse(str(index_path))

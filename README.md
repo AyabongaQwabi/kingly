@@ -4,6 +4,25 @@ AI agent app: generate business logic, PRD, and build prompts from an app descri
 
 ## Setup
 
+## Deploy (Render.com — single Web Service)
+
+You can deploy Kingly as **one Render Web Service** by serving the built frontend from FastAPI.
+
+- **Root Directory**: `kingly`
+- **Build Command**:
+
+```bash
+./render-build.sh
+```
+
+- **Start Command**:
+
+```bash
+cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+```
+
+- **Environment variables** (Render → Environment): set the same backend vars you use locally (`GOOGLE_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, optional `SUPABASE_JWT_SECRET`, etc.).\n
+
 ### 1. Supabase
 
 - Create a project at [supabase.com](https://supabase.com).
