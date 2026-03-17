@@ -622,8 +622,11 @@ def api_download_zip(
     )
 
 
+app.include_router(api)
+
+
 # ---------- SPA fallback (React Router) ----------
-@app.get("/{full_path:path}")
+@app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
 def spa_fallback(full_path: str):
     # If frontend isn't built, avoid masking API 404s.
     if not _frontend_dist.exists():
@@ -641,6 +644,3 @@ def spa_fallback(full_path: str):
     if not index_path.exists():
         raise HTTPException(status_code=404, detail="Frontend not built")
     return FileResponse(str(index_path))
-
-
-app.include_router(api)
