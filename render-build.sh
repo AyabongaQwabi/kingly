@@ -8,6 +8,7 @@ npm run build
 
 echo "Installing backend deps…"
 cd ../backend
+python -m pip install -U pip
 pip install -r requirements.txt
 
 echo "Build complete."

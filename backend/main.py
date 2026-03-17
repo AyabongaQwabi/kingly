@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -201,6 +201,8 @@ async def lifespan(app):
 
 app = FastAPI(title="Kingly API", description="Projects, documents, and AI agents", lifespan=lifespan)
 
+api = APIRouter(prefix="/api")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
@@ -217,14 +219,14 @@ if _frontend_dist.exists():
     app.mount("/assets", StaticFiles(directory=str(_frontend_dist / "assets")), name="assets")
 
 
-@app.get("/health")
+@api.get("/health")
 def health():
     return {"status": "ok"}
 
 
 # ---------- Auto-confirm new user email ----------
 
-@app.post("/auth/confirm-email")
+@api.post("/auth/confirm-email")
 def api_confirm_email(user_id: Annotated[str, Depends(get_current_user_id)]):
     """Mark the current user's email as confirmed (call after signup so they can use the app without email verification)."""
     try:
@@ -238,7 +240,7 @@ def api_confirm_email(user_id: Annotated[str, Depends(get_current_user_id)]):
 
 # ---------- Projects ----------
 
-@app.get("/projects")
+@api.get("/projects")
 def api_list_projects(user_id: Annotated[str, Depends(get_current_user_id)]):
     r = list_projects(user_id)
     if r.get("status") != "ok":
@@ -246,7 +248,7 @@ def api_list_projects(user_id: Annotated[str, Depends(get_current_user_id)]):
     return {"projects": r["projects"]}
 
 
-@app.post("/projects")
+@api.post("/projects")
 def api_create_project(
     body: ProjectCreate,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -257,7 +259,7 @@ def api_create_project(
     return r["project"]
 
 
-@app.get("/projects/{project_id}")
+@api.get("/projects/{project_id}")
 def api_get_project(
     project_id: str,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -273,7 +275,7 @@ def api_get_project(
     return proj
 
 
-@app.put("/projects/{project_id}")
+@api.put("/projects/{project_id}")
 def api_update_project(
   project_id: str,
   body: ProjectUpdate,
@@ -292,7 +294,7 @@ def api_update_project(
     return r.get("project") or r
 
 
-@app.delete("/projects/{project_id}")
+@api.delete("/projects/{project_id}")
 def api_delete_project(
     project_id: str,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -306,7 +308,7 @@ def api_delete_project(
 
 # ---------- Documents ----------
 
-@app.get("/projects/{project_id}/documents")
+@api.get("/projects/{project_id}/documents")
 def api_list_documents(
     project_id: str,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -320,7 +322,7 @@ def api_list_documents(
     return {"documents": r["documents"]}
 
 
-@app.get("/documents/{document_id}")
+@api.get("/documents/{document_id}")
 def api_get_document(
     document_id: str,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -338,7 +340,7 @@ def api_get_document(
     return doc
 
 
-@app.post("/projects/{project_id}/documents")
+@api.post("/projects/{project_id}/documents")
 def api_create_document(
     project_id: str,
     body: DocumentCreate,
@@ -372,7 +374,7 @@ def _update_document_content_with_prompt(current_content: str, prompt: str) -> s
     return current_content
 
 
-@app.post("/documents/{document_id}/update")
+@api.post("/documents/{document_id}/update")
 def api_update_document_with_prompt(
     document_id: str,
     body: DocumentUpdatePrompt,
@@ -394,7 +396,7 @@ def api_update_document_with_prompt(
 
 # ---------- Run agent ----------
 
-@app.post("/projects/{project_id}/refine-description")
+@api.post("/projects/{project_id}/refine-description")
 async def api_refine_description(
     project_id: str,
     body: RefineDescriptionRequest,
@@ -441,7 +443,7 @@ async def api_refine_description(
     return {"refined": refined, "document": doc}
 
 
-@app.post("/projects/{project_id}/run")
+@api.post("/projects/{project_id}/run")
 async def api_run_agent(
     project_id: str,
     body: RunAgentRequest,
@@ -461,7 +463,7 @@ async def api_run_agent(
     return {"reply": reply, "agent": body.agent}
 
 
-@app.post("/projects/{project_id}/cursor-package")
+@api.post("/projects/{project_id}/cursor-package")
 async def api_cursor_package(
     project_id: str,
     body: CursorPackageRequest,
@@ -548,7 +550,7 @@ def _extract_text_from_file(content: bytes, filename: str) -> str:
     return content.decode("utf-8", errors="replace")
 
 
-@app.post("/projects/{project_id}/upload")
+@api.post("/projects/{project_id}/upload")
 async def api_upload(
     project_id: str,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -576,7 +578,7 @@ async def api_upload(
 
 # ---------- Download zip ----------
 
-@app.get("/projects/{project_id}/artifacts/zip")
+@api.get("/projects/{project_id}/artifacts/zip")
 def api_download_zip(
     project_id: str,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -627,6 +629,10 @@ def spa_fallback(full_path: str):
     if not _frontend_dist.exists():
         raise HTTPException(status_code=404, detail="Not found")
 
+    # Never serve the SPA for API routes.
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="Not found")
+
     # Let actual static assets pass through; they should be served by the mount above.
     if full_path.startswith("assets/"):
         raise HTTPException(status_code=404, detail="Not found")
@@ -635,3 +641,6 @@ def spa_fallback(full_path: str):
     if not index_path.exists():
         raise HTTPException(status_code=404, detail="Frontend not built")
     return FileResponse(str(index_path))
+
+
+app.include_router(api)

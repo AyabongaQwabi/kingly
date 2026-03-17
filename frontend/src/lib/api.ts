@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
+const API_PREFIX = "/api";
 
 async function getAuthHeaders(): Promise<HeadersInit> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -17,7 +18,9 @@ export async function api<T = unknown>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+  const withPrefix =
+    path.startsWith("http") || path.startsWith(API_PREFIX) ? path : `${API_PREFIX}${path}`;
+  const url = withPrefix.startsWith("http") ? withPrefix : `${API_BASE}${withPrefix}`;
   const headers = await getAuthHeaders();
   const res = await fetch(url, {
     ...options,
@@ -38,7 +41,9 @@ export async function apiUpload(
   file: File
 ): Promise<{ document: { id: string; title: string; type: string }; extracted_length: number }> {
   const { data: { session } } = await supabase.auth.getSession();
-  const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+  const withPrefix =
+    path.startsWith("http") || path.startsWith(API_PREFIX) ? path : `${API_PREFIX}${path}`;
+  const url = withPrefix.startsWith("http") ? withPrefix : `${API_BASE}${withPrefix}`;
   const form = new FormData();
   form.append("file", file);
   const res = await fetch(url, {
@@ -142,7 +147,7 @@ export const uploadFile = (projectId: string, file: File) =>
 export async function downloadZip(projectId: string): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession();
   const base = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "") || "";
-  const url = `${base}/projects/${projectId}/artifacts/zip`;
+  const url = `${base}${API_PREFIX}/projects/${projectId}/artifacts/zip`;
   const res = await fetch(url, {
     headers: session?.access_token
       ? { Authorization: `Bearer ${session.access_token}` }
