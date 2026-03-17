@@ -34,7 +34,6 @@ pip-wheel-metadata/
 *.egg
 *.egg-info/
 .eggs/
-dist/
 build/
 .wheelhouse/
 .cache/
