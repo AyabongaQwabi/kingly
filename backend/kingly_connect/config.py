@@ -29,6 +29,9 @@ PRD_AGENT_PROMPT_PATH = REPO_ROOT / "docs" / "prompts" / "prd-agent.md"
 PROMPTS_AGENT_PROMPT_PATH = REPO_ROOT / "docs" / "prompts" / "prompts-agent.md"
 ZIP_AGENT_PROMPT_PATH = REPO_ROOT / "docs" / "prompts" / "zip-agent.md"
 DESCRIPTION_REFINER_AGENT_PROMPT_PATH = REPO_ROOT / "docs" / "prompts" / "description-refiner-agent.md"
+TECH_STACK_AGENT_PROMPT_PATH = REPO_ROOT / "docs" / "prompts" / "tech-stack-agent.md"
+CURSOR_MASTER_PROMPT_AGENT_PROMPT_PATH = REPO_ROOT / "docs" / "prompts" / "cursor-master-prompt-agent.md"
+CURSOR_EXECUTION_PLAN_AGENT_PROMPT_PATH = REPO_ROOT / "docs" / "prompts" / "cursor-execution-plan-agent.md"
 
 
 def get_agent_model() -> str:

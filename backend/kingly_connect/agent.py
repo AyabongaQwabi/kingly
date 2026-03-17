@@ -8,9 +8,12 @@ from google.adk.agents import Agent
 from . import config
 from .sub_agents import (
     business_logic_agent,
+    cursor_execution_plan_agent,
+    cursor_master_prompt_agent,
     description_refiner_agent,
     prd_agent,
     prompts_agent,
+    tech_stack_agent,
     zip_agent,
 )
 
@@ -36,5 +39,14 @@ def get_root_agent() -> Agent:
         description="Routes to business_logic, prd, prompts, or zip agent based on request.",
         instruction=_load_root_instruction(),
         tools=[],
-        sub_agents=[description_refiner_agent, business_logic_agent, prd_agent, prompts_agent, zip_agent],
+        sub_agents=[
+            description_refiner_agent,
+            tech_stack_agent,
+            cursor_master_prompt_agent,
+            cursor_execution_plan_agent,
+            business_logic_agent,
+            prd_agent,
+            prompts_agent,
+            zip_agent,
+        ],
     )

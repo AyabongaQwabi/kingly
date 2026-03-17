@@ -128,7 +128,17 @@ def delete_project(project_id: str) -> dict[str, Any]:
 def create_document(project_id: str, type: str, title: str, content: str = "") -> dict[str, Any]:
     """Create a document (business_logic, prd, prompts, or upload). Returns the created document with id."""
     try:
-        if type not in ("app_description", "business_logic", "prd", "prompts", "upload"):
+        if type not in (
+            "app_description",
+            "business_logic",
+            "prd",
+            "prompts",
+            "upload",
+            "tech_stack",
+            "cursor_rules",
+            "cursor_master_prompt",
+            "cursor_execution_plan",
+        ):
             return {"status": "error", "message": "Invalid type"}
         sb = _get_client()
         r = sb.table("documents").insert({

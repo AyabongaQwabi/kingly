@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { ArrowLeft, Download, FileText, LogOut, Loader2 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { documents, projects, type Document } from "../lib/api";
@@ -86,9 +89,48 @@ export default function DocumentView() {
         </div>
       </header>
       <main className="max-w-3xl mx-auto px-4 py-8">
-        <article className="prose prose-gray max-w-none card p-6">
+        <article className="card p-6 markdown">
           {doc.content ? (
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{doc.content}</ReactMarkdown>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkBreaks]}
+              components={{
+                code({ className, children, ...props }) {
+                  const match = /language-(\w+)/.exec(className || "");
+                  const language = match?.[1];
+                  const isBlock = Boolean(className);
+                  const codeText = String(children ?? "").replace(/\n$/, "");
+
+                  if (!isBlock) {
+                    return (
+                      <code className="markdown-inline-code" {...props}>
+                        {children}
+                      </code>
+                    );
+                  }
+
+                  return (
+                    <SyntaxHighlighter
+                      language={language}
+                      style={oneDark}
+                      PreTag="div"
+                      customStyle={{
+                        margin: 0,
+                        background: "transparent",
+                        padding: 0,
+                      }}
+                      codeTagProps={{ style: { fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" } }}
+                    >
+                      {codeText}
+                    </SyntaxHighlighter>
+                  );
+                },
+                pre({ children }) {
+                  return <pre className="markdown-pre">{children}</pre>;
+                },
+              }}
+            >
+              {doc.content}
+            </ReactMarkdown>
           ) : (
             <p className="text-gray-500">No content.</p>
           )}

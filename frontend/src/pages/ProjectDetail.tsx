@@ -5,7 +5,6 @@ import {
   FolderOpen,
   Download,
   Pencil,
-  Upload,
   Loader2,
   ArrowLeft,
   LogOut,
@@ -18,7 +17,7 @@ import {
   documents,
   runAgent,
   refineDescription,
-  uploadFile,
+  generateCursorPackage,
   downloadZip,
   type Project,
   type Document,
@@ -44,10 +43,9 @@ export default function ProjectDetail() {
   const [running, setRunning] = useState<string | null>(null);
   const [runReply, setRunReply] = useState("");
   const [appDescription, setAppDescription] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState("");
   const [savingDescription, setSavingDescription] = useState(false);
   const [refiningDescription, setRefiningDescription] = useState(false);
+  const [generatingCursorPackage, setGeneratingCursorPackage] = useState(false);
   const [editDoc, setEditDoc] = useState<Document | null>(null);
   const [editPrompt, setEditPrompt] = useState("");
   const [updatingDoc, setUpdatingDoc] = useState(false);
@@ -84,6 +82,22 @@ export default function ProjectDetail() {
   const enableBusinessLogic = hasAppDescriptionDoc && hasPrd && !running;
   const enablePrompts = hasBusinessLogic && !running;
   const enableZip = hasPrompts && !running;
+  const enableCursorPackage = hasPrd && hasBusinessLogic && !running && !generatingCursorPackage;
+
+  async function handleGenerateCursorPackage() {
+    if (!projectId) return;
+    setGeneratingCursorPackage(true);
+    setRunReply("");
+    try {
+      const res = await generateCursorPackage(projectId);
+      setDocs(res.documents || []);
+      setRunReply("Cursor package generated. Download the zip to get .cursor rules + master prompt + plan.");
+    } catch (e) {
+      setRunReply(e instanceof Error ? e.message : "Cursor package failed");
+    } finally {
+      setGeneratingCursorPackage(false);
+    }
+  }
 
   async function handleRefineDescription() {
     if (!projectId || !appDescription.trim()) return;
@@ -146,28 +160,6 @@ export default function ProjectDetail() {
       await downloadZip(projectId);
     } catch {
       setRunReply("Download failed");
-    }
-  }
-
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !projectId) return;
-    const ext = (file.name || "").toLowerCase();
-    if (![".pdf", ".docx", ".doc", ".md"].some((x) => ext.endsWith(x))) {
-      setUploadError("Only PDF, DOCX, and Markdown files are supported.");
-      return;
-    }
-    setUploading(true);
-    setUploadError("");
-    try {
-      await uploadFile(projectId, file);
-      const list = await documents.list(projectId);
-      setDocs(list);
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      setUploading(false);
-      e.target.value = "";
     }
   }
 
@@ -278,6 +270,15 @@ export default function ProjectDetail() {
               <div className="flex flex-wrap gap-2 mb-5">
                 <button
                   type="button"
+                  onClick={handleGenerateCursorPackage}
+                  disabled={!enableCursorPackage}
+                  className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800 disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  {generatingCursorPackage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  {generatingCursorPackage ? "Generating..." : "Generate Cursor Package"}
+                </button>
+                <button
+                  type="button"
                   onClick={() => handleRunAgent("prd")}
                   disabled={!enablePrd}
                   className="btn-primary inline-flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
@@ -329,20 +330,7 @@ export default function ProjectDetail() {
                 </div>
               )}
 
-              <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  <Upload className="h-4 w-4" />
-                  Upload PDF, DOCX, or Markdown
-                </h3>
-                <input
-                  type="file"
-                  accept=".pdf,.docx,.doc,.md"
-                  onChange={handleFileChange}
-                  disabled={uploading}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-50 file:text-blue-700"
-                />
-                {uploadError && <p className="text-red-600 text-sm mt-1">{uploadError}</p>}
-              </div>
+              {/* Upload section hidden for now */}
             </div>
           </section>
 

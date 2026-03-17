@@ -130,6 +130,12 @@ export const refineDescription = (projectId: string, draft: string) =>
     body: JSON.stringify({ draft }),
   });
 
+export const generateCursorPackage = (projectId: string, stackOverride: string = "") =>
+  api<{ status: string; documents: Document[] }>(`/projects/${projectId}/cursor-package`, {
+    method: "POST",
+    body: JSON.stringify({ stack_override: stackOverride }),
+  });
+
 export const uploadFile = (projectId: string, file: File) =>
   apiUpload(`/projects/${projectId}/upload`, file);
 

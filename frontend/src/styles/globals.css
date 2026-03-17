@@ -48,4 +48,30 @@
   .input {
     @apply w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20;
   }
+
+  /* Markdown rendering (DocumentView) */
+  .markdown {
+    @apply text-gray-900 leading-7;
+  }
+  .markdown h1 { @apply text-2xl font-semibold mt-2 mb-4; }
+  .markdown h2 { @apply text-xl font-semibold mt-6 mb-3; }
+  .markdown h3 { @apply text-lg font-semibold mt-5 mb-2; }
+  .markdown p { @apply my-3; }
+  .markdown ul { @apply my-3 ml-6 list-disc; }
+  .markdown ol { @apply my-3 ml-6 list-decimal; }
+  .markdown li { @apply my-1; }
+  .markdown blockquote { @apply my-4 border-l-4 border-gray-200 pl-4 text-gray-700; }
+  .markdown hr { @apply my-6 border-gray-200; }
+  .markdown a { @apply text-blue-700 underline underline-offset-2; }
+
+  .markdown-inline-code {
+    @apply rounded bg-gray-100 px-1.5 py-0.5 text-[0.95em] font-mono;
+  }
+
+  .markdown-pre {
+    @apply my-4 overflow-x-auto rounded-xl border border-gray-200 bg-gray-950 p-4;
+  }
+  .markdown-pre code {
+    @apply text-gray-100;
+  }
 }

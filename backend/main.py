@@ -167,12 +167,15 @@ class RunAgentInput(BaseModel):
 
 
 class RunAgentRequest(BaseModel):
-    agent: str = Field(..., pattern="^(business_logic|prd|prompts|zip)$")
+    agent: str = Field(..., pattern="^(business_logic|prd|prompts|zip|tech_stack)$")
     input: RunAgentInput = Field(default_factory=RunAgentInput)
 
 
 class DocumentCreate(BaseModel):
-    type: str = Field(..., pattern="^(app_description|business_logic|prd|prompts|upload)$")
+    type: str = Field(
+        ...,
+        pattern="^(app_description|business_logic|prd|prompts|upload|tech_stack|cursor_rules|cursor_master_prompt|cursor_execution_plan)$",
+    )
     title: str = Field(..., min_length=1)
     content: str = ""
 
@@ -182,6 +185,10 @@ class DocumentUpdatePrompt(BaseModel):
 
 class RefineDescriptionRequest(BaseModel):
     draft: str = Field(..., min_length=1)
+
+class CursorPackageRequest(BaseModel):
+    # For v1, allow an optional override as free text.
+    stack_override: str = ""
 
 
 # ---------- App ----------
@@ -447,6 +454,63 @@ async def api_run_agent(
     return {"reply": reply, "agent": body.agent}
 
 
+@app.post("/projects/{project_id}/cursor-package")
+async def api_cursor_package(
+    project_id: str,
+    body: CursorPackageRequest,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    r = get_project(project_id)
+    if r.get("status") != "ok" or r["project"].get("user_id") != user_id:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    docs_r = list_documents(project_id)
+    if docs_r.get("status") != "ok":
+        raise HTTPException(status_code=500, detail="Failed to list documents")
+    docs = docs_r.get("documents") or []
+    has_prd = any(d.get("type") == "prd" for d in docs)
+    has_bl = any(d.get("type") == "business_logic" for d in docs)
+    if not (has_prd and has_bl):
+        raise HTTPException(status_code=400, detail="PRD and Business Logic are required first")
+
+    # 1) Decide stack + generate cursor rules (agent saves docs)
+    stack_msg = "Run tech_stack agent"
+    if (body.stack_override or "").strip():
+        stack_msg += "\n\nUser stack override:\n" + body.stack_override.strip()
+    await run_agent_async(
+        user_id=user_id,
+        message=stack_msg,
+        project_id=project_id,
+    )
+
+    # 2) Generate Cursor-optimized prompts doc (prompt 1..4 inside)
+    await run_agent_async(
+        user_id=user_id,
+        message="Run prompts agent",
+        project_id=project_id,
+    )
+
+    # 3) Generate and save MasterPrompt.md content
+    await run_agent_async(
+        user_id=user_id,
+        message="Run cursor_master_prompt agent",
+        project_id=project_id,
+    )
+
+    # 4) Generate and save ExecutionPlan.md content
+    await run_agent_async(
+        user_id=user_id,
+        message="Run cursor_execution_plan agent",
+        project_id=project_id,
+    )
+
+    # Return latest docs snapshot for the UI
+    docs_r2 = list_documents(project_id)
+    if docs_r2.get("status") != "ok":
+        raise HTTPException(status_code=500, detail="Failed to list documents")
+    return {"status": "ok", "documents": docs_r2.get("documents") or []}
+
+
 # ---------- Upload (PDF/DOCX/MD) ----------
 
 def _extract_text_from_file(content: bytes, filename: str) -> str:
@@ -520,7 +584,16 @@ def api_download_zip(
     by_type = {}
     for d in documents:
         t = d.get("type")
-        if t in ("app_description", "business_logic", "prd", "prompts"):
+        if t in (
+            "app_description",
+            "business_logic",
+            "prd",
+            "prompts",
+            "tech_stack",
+            "cursor_rules",
+            "cursor_master_prompt",
+            "cursor_execution_plan",
+        ):
             by_type[t] = d
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -528,6 +601,10 @@ def api_download_zip(
         zf.writestr("business-logic.md", (by_type.get("business_logic") or {}).get("content") or "")
         zf.writestr("prd.md", (by_type.get("prd") or {}).get("content") or "")
         zf.writestr("build-prompts.md", (by_type.get("prompts") or {}).get("content") or "")
+        zf.writestr("tech-stack.md", (by_type.get("tech_stack") or {}).get("content") or "")
+        zf.writestr(".cursor/rules/kingly.md", (by_type.get("cursor_rules") or {}).get("content") or "")
+        zf.writestr("MasterPrompt.md", (by_type.get("cursor_master_prompt") or {}).get("content") or "")
+        zf.writestr("ExecutionPlan.md", (by_type.get("cursor_execution_plan") or {}).get("content") or "")
     buf.seek(0)
     return StreamingResponse(
         buf,
